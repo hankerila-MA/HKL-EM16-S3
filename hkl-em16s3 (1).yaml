@@ -1,0 +1,731 @@
+esphome:
+  name: hkl-em16s3
+  friendly_name: HKL-EM16S3
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "riHNpg792ORMMvL1ieNXfxmMvejq7eqrIE5JI3Z9jZw="
+
+ota:
+  - platform: esphome
+    password: "eb56342105782702d4f40215976de9ac"
+
+ethernet:
+  type: W5500
+  clk_pin: GPIO13
+  mosi_pin: GPIO11
+  miso_pin: GPIO12
+  cs_pin: GPIO14
+  interrupt_pin: GPIO10
+  reset_pin: GPIO9
+  # Configure network settings according to your environment
+  manual_ip:
+    static_ip: 192.168.50.200
+    gateway: 192.168.50.1
+    subnet: 255.255.255.0
+# RTC (Real-Time Clock) configuration
+time:
+  - platform: ds1307
+    id: ds1307_time
+    update_interval: never
+    on_time:
+      - seconds: 0
+        then:
+          - text_sensor.template.publish:
+              id: rtc_time_str
+              state: !lambda |-
+                auto time = id(ds1307_time).now();
+                return time.strftime("%Y-%m-%d %H:%M:%S");
+          - text_sensor.template.publish:
+              id: rtc_date_str
+              state: !lambda |-
+                auto time = id(ds1307_time).now();
+                return time.strftime("%Y-%m-%d");
+          - text_sensor.template.publish:
+              id: rtc_time_only_str
+              state: !lambda |-
+                auto time = id(ds1307_time).now();
+                return time.strftime("%H:%M:%S");
+
+  - platform: homeassistant
+    on_time_sync:
+      then:
+        # Update RTC when time synchronizes with Home Assistant
+        - ds1307.write_time:
+#################################################################################
+# RTC text sensors for Home Assistant display
+text_sensor:
+  - platform: template
+    id: rtc_time_str
+    name: "RTC DATA_TIME"
+    icon: "mdi:clock"
+    update_interval: never  
+
+  - platform: template
+    id: rtc_date_str
+    name: "RTC DATA"
+    icon: "mdi:calendar"
+    update_interval: never
+
+  - platform: template
+    id: rtc_time_only_str
+    name: "RTC TIME"
+    icon: "mdi:clock-time-eight"
+    update_interval: never
+####################################################################
+# UART configurations (LORA, RS232, RS485)
+uart:
+  - id: 'LORA'
+    tx_pin: GPIO41
+    rx_pin: GPIO38
+    baud_rate: 9600
+
+  - id: 'UART_RS232'
+    tx_pin: GPIO20    
+    rx_pin: GPIO19
+    baud_rate: 9600 
+
+  - id: 'UART_RS485'
+    tx_pin: GPIO48    
+    rx_pin: GPIO47
+    baud_rate: 9600
+
+# Buttons for UART message transmission
+button:   
+  - platform: uart
+    uart_id: LORA
+    name: "LORA send message"
+    data: 'LORA_SEND_HANKERILA'  
+  - platform: uart
+    uart_id: UART_RS232
+    name: "RS232 send message"
+    data: 'RS232_SEND_HANKERILA'  
+  - platform: uart
+    uart_id: UART_RS485
+    name: "RS485 send message"
+    data: 'RS485_SEND_HANKERILA'  
+####################################################################
+# Global variables for display management
+globals:
+  - id: display_page
+    type: int
+    initial_value: '0'  # 0 = Main page, 1 = Temperature page
+    
+  # Variables for button debouncing
+  - id: last_button_state
+    type: bool
+    initial_value: 'true'
+  - id: last_debounce_time
+    type: unsigned long
+    initial_value: '0'
+####################################################################
+# Configure PCF8574 I/O expanders
+pcf8574:
+    # Relay output control
+  - id: 'pcf8574_hub_out_1'  
+    address: 0x24
+   # Relay output control
+  - id: 'pcf8574_hub_out_2'  
+    address: 0x25
+    # Digital input
+  - id: 'pcf8574_hub_in_1'  
+    address: 0x26
+  - id: 'pcf8574_hub_in_2'  
+    address: 0x27
+
+
+binary_sensor:
+  # Existing input configurations
+  - platform: gpio
+    name: "INPUT_01"
+    id: input01
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 0
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_02"
+    id: input02
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 1
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_03"
+    id: input03
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 2
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_04"
+    id: input04
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 3
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_05"
+    id: input05
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 4
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_06"
+    id: input06
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 5
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_07"
+    id: input07
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 6
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_08"
+    id: input08
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 7
+      mode: input
+      inverted: true
+
+########################################################
+##### input 9-16 ########################################
+########################################################
+  - platform: gpio
+    name: "INPUT_09"
+    id: input09
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 0
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_10"
+    id: input10
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 1
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_11"
+    id: input11
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 2
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_12"
+    id: input12
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 3
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_13"
+    id: input13
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 4
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_14"
+    id: input14
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 5
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_15"
+    id: input15
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 6
+      mode: input
+      inverted: true
+  - platform: gpio
+    name: "INPUT_16"
+    id: input16
+    pin:
+      pcf8574: pcf8574_hub_in_2
+      number: 7
+      mode: input
+      inverted: true
+#######################################################################################################
+# Add GPIO0(DL BUTTON) as page switch button with debouncing
+  - platform: gpio
+    name: "Page Switch Button (GPIO0)"
+    id: page_switch_button
+    pin:
+      number: GPIO0
+      mode:
+        input: true
+        pullup: true  # Use internal pull-up resistor
+      inverted: true  # Invert state so press = true
+    on_state:  # Corrected from on_state_change to on_state
+      then:
+        - lambda: |-
+            // Simple debounce handling (20ms)
+            unsigned long current_time = millis();
+            if (current_time - id(last_debounce_time) > 20) {
+              // Only process if state changed and stable
+              if (id(page_switch_button).state != id(last_button_state)) {
+                id(last_button_state) = id(page_switch_button).state;
+                // Switch page when button is pressed (state is true)
+                if (id(page_switch_button).state) {
+                  id(display_page) = (id(display_page) + 1) % 2;
+                }
+              }
+            }
+            id(last_debounce_time) = current_time;
+    
+#######################################################################################################
+# I2C bus configuration
+i2c:
+  sda: 17
+  scl: 18
+  scan: true
+  id: bus_a
+#######################################################################################################
+# MCP4728 DAC configuration for 0-10V output
+mcp4728:
+  - id: dac_output
+   # address: 0x60  # The address is on the back label of the product. 
+    #  address: 0x61  
+    address: 0x62
+
+output:
+############################################
+########  output 0-10V ##########
+  - platform: mcp4728
+    id: dac_channel_a
+    mcp4728_id: dac_output
+    channel: A
+    vref: vdd
+    gain: x2
+    power_down: normal
+  
+  - platform: mcp4728
+    id: dac_channel_b
+    mcp4728_id: dac_output
+    channel: B
+    vref: vdd
+    gain: x2
+    power_down: normal
+############################################
+########  output 4-20ma ##########
+  - platform: mcp4728
+    id: dac_channel_c
+    mcp4728_id: dac_output
+    channel: C
+    vref: vdd
+    power_down: normal
+#########################################
+
+light:
+  - platform: monochromatic
+    name: "DAC Output 0-10V"
+    id: light_a
+    output: dac_channel_a
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: monochromatic
+    name: "DAC2 Output 0-10V"
+    id: light_b
+    output: dac_channel_b
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: monochromatic
+    name: "DAC3 Output 4-20mA"
+    id: light_c
+    output: dac_channel_c
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
+#######################################################################################################
+# ADS1115 ADC configuration
+ads1115:
+  - address: 0x49
+    i2c_id: bus_a
+#######################################################################################################
+# DS18B20 temperature sensor configuration
+one_wire:
+  - platform: gpio
+    pin: GPIO1
+    id: tem01
+  - platform: gpio
+    pin: GPIO2
+    id: tem02
+  - platform: gpio
+    pin: GPIO3
+    id: tem03
+sensor:
+  - platform: dallas_temp
+  #The address of the DS18B20 will be printed in the log file. Copy the printed address to the "address" field.
+    address: 0x830000000000
+    name: "tem1"
+    id: tem1_sensor
+    one_wire_id: tem01
+    update_interval: 5s
+  - platform: dallas_temp
+    address: 0x0000000000000
+    name: "tem2"
+    id: tem2_sensor
+    one_wire_id: tem02
+    update_interval: 5s
+  - platform: dallas_temp
+    address: 0x830000006ad10728
+    name: "tem3"
+    id: tem3_sensor
+    one_wire_id: tem03
+    update_interval: 5s
+######################################################################
+# 0-10V and 4-20mA detection configuration
+  - platform: ads1115
+    # Measure the voltage between A0 and A1
+    multiplexer: 'A0_A1'
+    # Gain setting for the ADC
+    gain: 6.144
+    # Name of the sensor in Home Assistant
+    name: "SCT013-30A-1V"
+    # Update interval for the sensor
+    update_interval: 3s
+
+  - platform: ads1115
+    # ID for the sensor
+    id: ads1115_02
+    # Measure the voltage between A2 and GND
+    multiplexer: 'A2_GND'
+    # Gain setting for the ADC
+    gain: 6.144
+    # Name of the sensor in Home Assistant
+    name: "0-10V"
+    # Update interval for the sensor
+    update_interval: 2s
+    filters:
+    - lambda: return x * 2;
+
+  - platform: ads1115
+    # ID for the raw voltage sensor
+    id: ads1115_03_raw
+    # Measure the voltage between A3 and GND
+    multiplexer: 'A3_GND'
+    # Gain setting for the ADC
+    gain: 6.144
+    # Update interval for the sensor
+    update_interval: 2s
+    # Set the sensor as internal, not visible in Home Assistant
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            // Sampling resistor value in ohms
+            const float sampling_resistor = 200.0;
+            // Convert voltage to current in milliamperes
+            float current = (id(ads1115_03_raw).state / sampling_resistor) * 1000;
+            // Publish the converted current value to the custom sensor
+            id(ads1115_03_current).publish_state(current);
+
+  - platform: template
+    # ID for the custom current sensor
+    id: ads1115_03_current
+    # Name of the sensor in Home Assistant
+    name: "4-20mA"
+    # Unit of measurement for the sensor
+    unit_of_measurement: "mA"
+    # Number of decimal places for the sensor value
+    accuracy_decimals: 2
+    # State class for the sensor
+    state_class: measurement
+
+#################################################################################
+
+
+
+# Relay switch configurations
+switch:
+  #############################
+  ########output 1-8##########
+  #############################
+  - platform: gpio
+    name: "light1"
+    id: 'relay01'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 0
+      mode: OUTPUT
+      inverted: true
+      
+  - platform: gpio
+    name: "light2"
+    id: 'relay02'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 1
+      mode: OUTPUT
+      inverted: true
+      
+  - platform: gpio
+    name: "light3"
+    id: 'relay03'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 2
+      mode: OUTPUT
+      inverted: true
+      
+  - platform: gpio
+    name: "light4"
+    id: 'relay04'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 3
+      mode: OUTPUT
+      inverted: true
+      
+  - platform: gpio
+    name: "light5"
+    id: 'relay05'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 4
+      mode: OUTPUT
+      inverted: true
+      
+  - platform: gpio
+    name: "light6"
+    id: 'relay06'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 5
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light7"
+    id: 'relay07'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 6
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light8"
+    id: 'relay08'
+    pin:
+      pcf8574: pcf8574_hub_out_1
+      number: 7
+      mode: OUTPUT
+      inverted: true
+  #############################
+  ########output 9-16##########
+  #############################
+  - platform: gpio
+    name: "light9"
+    id: 'relay09'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 0
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light10"
+    id: 'relay10'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 1
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light11"
+    id: 'relay101'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 2
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light12"
+    id: 'relay12'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 3
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light13"
+    id: 'relay13'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 4
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light14"
+    id: 'relay14'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 5
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light15"
+    id: 'relay15'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 6
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "light16"
+    id: 'relay16'
+    pin:
+      pcf8574: pcf8574_hub_out_2
+      number: 7
+      mode: OUTPUT
+      inverted: true
+#################################################################################
+# Font configurations for display
+font:
+  - file: "gfonts://Roboto"
+    id: my_font
+    size: 15
+    bpp: 2
+  - file: "gfonts://Roboto"
+    id: my_font2
+    size: 12
+    bpp: 2
+  - file: "gfonts://Roboto"
+    id: temp_font
+    size: 12
+    bpp: 2
+ 
+# OLED display configuration with page switching
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    address: 0x3C
+    update_interval: 300ms
+    lambda: |-
+      // Clear the screen
+      it.fill(COLOR_OFF);
+      
+      // Display current page based on global variable
+      if (id(display_page) == 0) {
+        // Main page - original display with relays and inputs
+        
+        // Display RTC time
+        if (id(ds1307_time).now().is_valid()) {
+          char time_str[16];
+          time_t curr_time = id(ds1307_time).now().timestamp;
+          strftime(time_str, sizeof(time_str), "%H:%M:%S", localtime(&curr_time));
+          it.print(10, 0, id(my_font2), time_str);
+        }
+        
+        // Draw Relay status indicators (squares)
+        const int relay_y = 30;    
+        const int relay_size = 8;  
+        const int relay_gap = 20;  
+        
+        if (id(relay01).state) it.filled_rectangle(10, relay_y, relay_size, relay_size, COLOR_ON);
+        else it.rectangle(10, relay_y, relay_size, relay_size, COLOR_ON);
+        
+        if (id(relay02).state) it.filled_rectangle(10+relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        else it.rectangle(10+relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        
+        if (id(relay03).state) it.filled_rectangle(10+2*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        else it.rectangle(10+2*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        
+        if (id(relay04).state) it.filled_rectangle(10+3*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        else it.rectangle(10+3*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        
+        if (id(relay05).state) it.filled_rectangle(10+4*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        else it.rectangle(10+4*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        
+        if (id(relay06).state) it.filled_rectangle(10+5*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+        else it.rectangle(10+5*relay_gap, relay_y, relay_size, relay_size, COLOR_ON);
+
+
+        // Draw Input status indicators (circles)
+        const int input_y = 55;    
+        const int input_radius = 4;
+        const int input_gap = 20;  
+        const int input_center_x_offset = 10 + input_radius;
+        
+        if (id(input01).state) it.filled_circle(input_center_x_offset, input_y, input_radius, COLOR_ON);
+        else it.circle(input_center_x_offset, input_y, input_radius, COLOR_ON);
+        
+        if (id(input02).state) it.filled_circle(input_center_x_offset + input_gap, input_y, input_radius, COLOR_ON);
+        else it.circle(input_center_x_offset + input_gap, input_y, input_radius, COLOR_ON);
+        
+        if (id(input03).state) it.filled_circle(input_center_x_offset + 2*input_gap, input_y, input_radius, COLOR_ON);
+        else it.circle(input_center_x_offset + 2*input_gap, input_y, input_radius, COLOR_ON);
+        
+        if (id(input04).state) it.filled_circle(input_center_x_offset + 3*input_gap, input_y, input_radius, COLOR_ON);
+        else it.circle(input_center_x_offset + 3*input_gap, input_y, input_radius, COLOR_ON);
+        
+        if (id(input05).state) it.filled_circle(input_center_x_offset + 4*input_gap, input_y, input_radius, COLOR_ON);
+        else it.circle(input_center_x_offset + 4*input_gap, input_y, input_radius, COLOR_ON);
+        
+        if (id(input06).state) it.filled_circle(input_center_x_offset + 5*input_gap, input_y, input_radius, COLOR_ON);
+        else it.circle(input_center_x_offset + 5*input_gap, input_y, input_radius, COLOR_ON);
+
+        // Section labels
+        it.print(30, 15, id(my_font), "Relays");
+        it.print(30, 35, id(my_font), "Inputs");
+      } 
+      else {
+          // Display temperature 1
+        if (id(tem1_sensor).has_state()) {
+          char temp1_str[16];
+          sprintf(temp1_str, "Tem01: %.1f C", id(tem1_sensor).state);
+          it.print(0, 0, id(temp_font), temp1_str);
+        } else {
+          it.print(0, 0, id(temp_font), "Tem01: --.- C");
+        }
+        
+        // Display temperature 2
+        if (id(tem2_sensor).has_state()) {
+          char temp2_str[16];
+          sprintf(temp2_str, "Tem02: %.1f C", id(tem2_sensor).state);
+          it.print(0, 20, id(temp_font), temp2_str);
+        } else {
+          it.print(0, 20, id(temp_font), "Tem02: --.- C");
+        }
+        
+        // Display temperature 3
+        if (id(tem3_sensor).has_state()) {
+          char temp3_str[16];
+          sprintf(temp3_str, "Tem03: %.1f C", id(tem3_sensor).state);
+          it.print(0, 40, id(temp_font), temp3_str);
+        } else {
+          it.print(0, 40, id(temp_font), "Tem03: --.- C");
+        }
+      }
+
